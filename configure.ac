@@ -1141,14 +1141,33 @@ if test x"$with_tiff" != x"no"; then
   )
 fi
 
-# giflib
-FIND_GIFLIB(
-  [with_giflib="yes (found by search)"
-  ], 
-  [AC_MSG_WARN([giflib not found; disabling direct GIF support])
-   with_giflib=no
-  ]
-)
+# search for libnsgif with pkg-config, see https://github.com/jcupitt/libnsgif
+AC_ARG_WITH([libnsgif], 
+  AS_HELP_STRING([--without-libnsgif], 
+		 [build without libnsgif (default: test)]))
+
+if test x"$with_libnsgif" != x"no"; then
+  PKG_CHECK_MODULES(LIBNSGIF, libnsgif,
+    [AC_DEFINE(HAVE_LIBNSGIF,1,[define if you have libnsgif installed.])
+     with_libnsgif="yes"
+     with_giflib="no (using libnsgif)"
+     PACKAGES_USED="$PACKAGES_USED libnsgif"
+    ],
+    [with_libnsgif="no"
+    ]
+  )
+fi
+
+# giflib if no libnsgif
+if test x"$with_libnsgif" != x"yes"; then
+  FIND_GIFLIB(
+    [with_giflib="yes (found by search)"
+    ], 
+    [AC_MSG_WARN([giflib not found; disabling direct GIF support])
+     with_giflib=no
+    ]
+  )
+fi
 
 # look for PNG with pkg-config ... fall back to our tester
 AC_ARG_WITH([png], 
@@ -1428,6 +1447,7 @@ file import/export with libpng: 	$with_png
 support 8bpp PNG quantisation:		$with_imagequant
   (requires libimagequant)
 file import/export with libtiff:	$with_tiff
+file import/export with libnsgif:	$with_libnsgif
 file import/export with giflib:		$with_giflib
 file import/export with libjpeg:	$with_jpeg
 image pyramid export:			$with_gsf
