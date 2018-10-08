@@ -70,6 +70,11 @@ typedef struct _VipsForeignLoadGif {
 	 */
 	gif_animation *gif;
 
+	/* The data/size pair we pass to libnsgif.
+	 */
+	size_t size;
+	unsigned char *data;
+
 } VipsForeignLoadGif;
 
 typedef VipsForeignLoadClass VipsForeignLoadGifClass;
@@ -165,7 +170,51 @@ vips_foreign_load_gif_is_a( const char *filename )
 	return( 0 );
 }
 
+static void *
+vips_foreign_load_gif_bitmap_create( int width, int height )
+{
+        /* ensure a stupidly large bitmap is not created */
 
+        return calloc(width * height, 4);
+}
+
+static void 
+vips_foreign_load_gif_bitmap_set_opaque( void *bitmap, bool opaque )
+{
+        (void) opaque;  /* unused */
+        (void) bitmap;  /* unused */
+        g_assert(bitmap);
+}
+
+static bool 
+vips_foreign_load_gif_bitmap_test_opaque( void *bitmap )
+{
+        (void) bitmap;  /* unused */
+        g_assert(bitmap);
+        return false;
+}
+
+static unsigned char *
+vips_foreign_load_gif_bitmap_get_buffer( void *bitmap )
+{
+        g_assert(bitmap);
+        return bitmap;
+}
+
+static void 
+vips_foreign_load_gif_bitmap_destroy( void *bitmap )
+{
+        g_assert(bitmap);
+        free(bitmap);
+}
+
+static void 
+vips_foreign_load_gif_bitmap_modified( void *bitmap )
+{
+        (void) bitmap;  /* unused */
+        g_assert(bitmap);
+        return;
+}
 
 static gif_bitmap_callback_vt vips_foreign_load_gif_bitmap_callbacks = {
 	vips_foreign_load_gif_bitmap_create,
@@ -183,13 +232,29 @@ vips_foreign_load_gif_load( VipsForeignLoad *load )
 	VipsImage **t = (VipsImage **) 
 		vips_object_local_array( VIPS_OBJECT( load ), 4 );
 
+	gif_result result;
 	VipsImage *im;
 
 	if( !(gif->gif = VIPS_NEW( load, gif_animation )) )
 		return( -1 );
 	gif_create( gif->gif, &vips_foreign_load_gif_bitmap_callbacks );
 
+	/* Decode entire GIF.
+	 *
+	 * FIXME ... add progressive decode.
+	 *
+	 * FIXME ... only decode as far as we need for the selected page
+	 *
+	 */
+        do {
+                result = gif_initialise( gif->gif, gif->size, gif->data );
+                if( result != GIF_OK && 
+			result != GIF_WORKING ) 
+                        return 1;
+        } while( result != GIF_OK );
 
+	/* Render from libnsgif memory areas into output image.
+	 */
 
 	return( 0 );
 }
@@ -232,11 +297,6 @@ static void
 vips_foreign_load_gif_init( VipsForeignLoadGif *gif )
 {
 	gif->n = 1;
-	gif->transparency = -1;
-	gif->delay = 4;
-	gif->loop = 0;
-	gif->comment = NULL;
-	gif->dispose = 0;
 }
 
 typedef struct _VipsForeignLoadGifFile {
@@ -258,6 +318,14 @@ vips_foreign_load_gif_file_header( VipsForeignLoad *load )
 {
 	VipsForeignLoadGif *gif = (VipsForeignLoadGif *) load;
 	VipsForeignLoadGifFile *file = (VipsForeignLoadGifFile *) load;
+
+	/* mmap the file.
+	 */
+	        if( vips_rawload( filename, &t[0],
+                        out->Xsize, out->Ysize, VIPS_IMAGE_SIZEOF_PEL( out ),
+                        "offset", header_offset,
+                        NULL ) ||
+
 
 	if( vips_foreign_load_gif_open( gif, file->filename ) ) 
 		return( -1 ); 
