@@ -1069,6 +1069,19 @@ if test x"$with_libwebp" != x"no"; then
   )
 fi
 
+if test x"$with_libwebp" != x"no"; then
+  # webp animations were added later
+  save_LIBS="$LIBS"
+  LIBS="$LIBS $LIBWEBPMUX_LIBS"
+  # We must check for the *Internal name of the function -- the version with
+  # the ABI check. Plain WebPAnimEncoderOptionsInit only exists in a header
+  # file.
+  AC_CHECK_FUNCS(WebPAnimEncoderOptionsInitInternal,
+    AC_DEFINE(HAVE_WEBPANIMENCODEROPTIONSINIT,1,[define if your libwebpmux has WebPAnimEncoderOptionsInit.])
+  )
+  LIBS="$save_LIBS"
+fi
+
 # pangoft2
 AC_ARG_WITH([pangoft2], 
   AS_HELP_STRING([--without-pangoft2], 
